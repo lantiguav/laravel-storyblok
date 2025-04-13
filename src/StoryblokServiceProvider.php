@@ -9,6 +9,7 @@ use Riclep\Storyblok\Console\FolderMakeCommand;
 use Riclep\Storyblok\Console\PageMakeCommand;
 use Riclep\Storyblok\Console\StubViewsCommand;
 use Storyblok\Api\StoryblokClient;
+use Storyblok\ManagementApi\ManagementApiClient;
 
 class StoryblokServiceProvider extends ServiceProvider
 {
@@ -71,11 +72,15 @@ class StoryblokServiceProvider extends ServiceProvider
             timeout: 10
         );
 
+        // register the Management API client
+        $managementClient = new ManagementApiClient(config('storyblok.oauth_token'));
+
         // This singleton allows to retrieve the driver set has default from the manager
         $this->app->singleton('image-transformer.driver', function ($app) {
             return $app['image-transformer']->driver();
         });
 
         $this->app->instance(StoryblokClient::class, $client);
+        $this->app->instance(ManagementApiClient::class, $managementClient);
     }
 }

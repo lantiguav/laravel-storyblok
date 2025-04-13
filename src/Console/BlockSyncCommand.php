@@ -9,8 +9,8 @@ use Barryvdh\Reflection\DocBlock\Tag;
 use Illuminate\Console\Command;
 use Illuminate\Filesystem\Filesystem;
 use Illuminate\Support\Str;
-use Storyblok\Api\StoriesApi;
 use Storyblok\ApiException;
+use Storyblok\ManagementApi\ManagementApiClient;
 
 class BlockSyncCommand extends Command
 {
@@ -143,13 +143,11 @@ class BlockSyncCommand extends Command
 	protected function getComponentFields($name): array
 	{
 		if (config('storyblok.oauth_token')) {
-			$client = new \Storyblok\Api\StoryblokClient(
-				baseUri: 'https://' . config('storyblok.management_api_base_url'),
-				token: config('storyblok.api_public_key'),
-			);
+			$client = new ManagementApiClient(config('storyblok.oauth_token'));
 
+			$managementApi = $client->managementApi();
 
-			$components = collect($client->request('GET', '/v1/spaces/'.config('storyblok.space_id').'/components')->toArray()['components']);
+			$components = collect($managementApi->get('spaces/'.config('storyblok.space_id').'/components')->toArray()['components']);
 
 			$component = $components->firstWhere('name', $name);
 
@@ -183,10 +181,8 @@ class BlockSyncCommand extends Command
 	 * @throws ApiException
 	 */
 	protected function createStoryblokCompontent($component_name){
-		$client = new \Storyblok\Api\StoryblokClient(
-			baseUri: 'https://' . config('storyblok.management_api_base_url'),
-			token: config('storyblok.oauth_token'),
-		);
+		$client = new ManagementApiClient(config('storyblok.oauth_token'));
+		$managementApi = $client->managementApi();
 
 		$payload = [
 			"component" =>  [
@@ -195,7 +191,7 @@ class BlockSyncCommand extends Command
 			]
 		];
 
-		$component = $client->request('POST', '/v1/spaces/'.config('storyblok.space_id').'/components/', $payload)->toArray();
+		$component = $managementApi->post('spaces/'.config('storyblok.space_id').'/components/', $payload)->toArray();
 
 		$this->info("Storyblok component created");
 

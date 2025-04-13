@@ -8,7 +8,7 @@ use Riclep\Storyblok\Console\BlockSyncCommand;
 use Riclep\Storyblok\Console\FolderMakeCommand;
 use Riclep\Storyblok\Console\PageMakeCommand;
 use Riclep\Storyblok\Console\StubViewsCommand;
-use Storyblok\Client;
+use Storyblok\Api\StoryblokClient;
 
 class StoryblokServiceProvider extends ServiceProvider
 {
@@ -64,26 +64,18 @@ class StoryblokServiceProvider extends ServiceProvider
 			}
 		}
 
-	    // register the Storyblok client, checking if we are in edit more of the dev requests draft content
-	    $client = new Client(
-			config('storyblok.draft') ? config('storyblok.api_preview_key') : config('storyblok.api_public_key'),
-            config('storyblok.delivery_api_base_url'), "v2", config('storyblok.use_ssl'), config('storyblok.api_region')
-	    );
+        // register the Storyblok client, checking if we are in edit more of the dev requests draft content
+        $client = new StoryblokClient(
+            baseUri: 'https://' . config('storyblok.delivery_api_base_url'),
+            token: config('storyblok.draft') ? config('storyblok.api_preview_key') : config('storyblok.api_public_key'),
+            timeout: 10
+        );
 
-	    // if we’re in Storyblok’s edit mode let’s save that in the config for easy access
-	    $client->editMode(config('storyblok.draft'));
+        // This singleton allows to retrieve the driver set has default from the manager
+        $this->app->singleton('image-transformer.driver', function ($app) {
+            return $app['image-transformer']->driver();
+        });
 
-        // the client's cache needs to be set or else the client's private isCache() will always return false
-        $client->setCache(config('storyblok.sb_cache_driver'), [
-            'path' => config('storyblok.sb_cache_path'),
-            'default_lifetime' => config('storyblok.sb_cache_lifetime'),
-        ]);
-
-	    // This singleton allows to retrieve the driver set has default from the manager
-	    $this->app->singleton('image-transformer.driver', function ($app) {
-		    return $app['image-transformer']->driver();
-	    });
-
-		$this->app->instance('Storyblok\Client', $client);
+        $this->app->instance(StoryblokClient::class, $client);
     }
 }

@@ -9,6 +9,7 @@ use Barryvdh\Reflection\DocBlock\Tag;
 use Illuminate\Console\Command;
 use Illuminate\Filesystem\Filesystem;
 use Illuminate\Support\Str;
+use Storyblok\Api\StoriesApi;
 use Storyblok\ApiException;
 
 class BlockSyncCommand extends Command
@@ -142,13 +143,13 @@ class BlockSyncCommand extends Command
 	protected function getComponentFields($name): array
 	{
 		if (config('storyblok.oauth_token')) {
-			$managementClient = new \Storyblok\ManagementClient(
-                apiKey:config('storyblok.oauth_token'),
-                apiEndpoint: config('storyblok.management_api_base_url'),
-                ssl: config('storyblok.use_ssl'),
-            );
+			$client = new \Storyblok\Api\StoryblokClient(
+				baseUri: 'https://' . config('storyblok.management_api_base_url'),
+				token: config('storyblok.api_public_key'),
+			);
 
-			$components = collect($managementClient->get('spaces/'.config('storyblok.space_id').'/components')->getBody()['components']);
+
+			$components = collect($client->request('GET', '/v1/spaces/'.config('storyblok.space_id').'/components')->toArray()['components']);
 
 			$component = $components->firstWhere('name', $name);
 
@@ -159,6 +160,7 @@ class BlockSyncCommand extends Command
 					$this->createStoryblokCompontent($name);
 				}
 			}
+
 
 			$fields = [];
 			foreach ($component['schema'] as $name => $data) {
@@ -181,27 +183,23 @@ class BlockSyncCommand extends Command
 	 * @throws ApiException
 	 */
 	protected function createStoryblokCompontent($component_name){
-        $managementClient = new \Storyblok\ManagementClient(
-            apiKey:config('storyblok.oauth_token'),
-            apiEndpoint: config('storyblok.management_api_base_url'),
-            ssl: config('storyblok.use_ssl'),
-        );
+		$client = new \Storyblok\Api\StoryblokClient(
+			baseUri: 'https://' . config('storyblok.management_api_base_url'),
+			token: config('storyblok.oauth_token'),
+		);
 
-        $payload = [
+		$payload = [
 			"component" =>  [
 				"name" =>  $component_name,
 				"display_name" =>  str::of( str_replace('-', ' ' ,$component_name) )->ucfirst(),
-					// "schema" =>  [],
-    				// "is_root" =>  false,
-					// "is_nestable" =>  true
 			]
 		];
 
-		$component = $managementClient->post('spaces/'.config('storyblok.space_id').'/components/', $payload)->getBody();
+		$component = $client->request('POST', '/v1/spaces/'.config('storyblok.space_id').'/components/', $payload)->toArray();
 
 		$this->info("Storyblok component created");
 
-        return $component['component'];
+		return $component['component'];
 	}
 
 	/**

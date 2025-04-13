@@ -6,7 +6,7 @@ use Illuminate\Console\Command;
 use Illuminate\Support\Facades\File;
 use Riclep\Storyblok\Traits\HasChildClasses;
 use Storyblok\ApiException;
-use Storyblok\ManagementClient;
+use Storyblok\Api\StoryblokClient;
 
 class StubViewsCommand extends Command
 {
@@ -46,13 +46,12 @@ class StubViewsCommand extends Command
 	{
 		$this->makeDirectories();
 
-		$client = new ManagementClient(
-            apiKey:config('storyblok.oauth_token'),
-            apiEndpoint: config('storyblok.management_api_base_url'),
-            ssl: config('storyblok.use_ssl'),
-        );
+		$client = new StoryblokClient(
+			baseUri: 'https://' . config('storyblok.management_api_base_url'),
+			token: config('storyblok.oauth_token'),
+		);
 
-		$components = collect($client->get('spaces/' . config('storyblok.space_id') . '/components/')->getBody()['components']);
+		$components = collect($client->request('GET', '/v1/spaces/' . config('storyblok.space_id') . '/components/')->toArray()['components']);
 
 		$components->each(function ($component) {
 			$path = resource_path('views/' . str_replace('.', '/', config('storyblok.view_path')) . 'blocks/');

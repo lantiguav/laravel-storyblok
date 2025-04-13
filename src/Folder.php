@@ -8,6 +8,13 @@ use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Cache;
 use Riclep\Storyblok\Traits\HasChildClasses;
+use Storyblok\Api\StoryblokClient;
+use Storyblok\Api\StoriesApi;
+use Storyblok\Api\Request\StoriesRequest;
+use Storyblok\Api\Domain\Value\Dto\Version;
+use Storyblok\Api\Domain\Value\Dto\Pagination;
+use Storyblok\Api\Domain\Value\Dto\SortBy;
+use Storyblok\Api\Domain\Value\Dto\Direction;
 
 abstract class Folder
 {
@@ -235,13 +242,34 @@ abstract class Folder
 	 */
 	protected function makeRequest(): array
 	{
-		$storyblokClient = resolve('Storyblok\Client');
+		$client = resolve(StoryblokClient::class);
+		$storiesApi = new StoriesApi($client, config('storyblok.draft') ? Version::Draft : Version::Published);
 
-		$storyblokClient =  $storyblokClient->getStories($this->getSettings());
+		$request = new StoriesRequest(
+			language: $this->language,
+			version: config('storyblok.draft') ? Version::Draft : Version::Published,
+			pagination: new Pagination(
+				page: $this->page,
+				perPage: $this->perPage
+			)
+		);
+
+		if ($this->sortBy) {
+			$request->sortBy = new SortBy(
+				field: $this->sortBy,
+				direction: $this->sortOrder === 'desc' ? Direction::Desc : Direction::Asc
+			);
+		}
+
+		if ($this->slug) {
+			$request->startsWith = $this->slug;
+		}
+
+		$response = $storiesApi->all($request);
 
 		return [
-			'headers' => $storyblokClient->getHeaders(),
-			'stories' => $storyblokClient->getBody()['stories'],
+			'headers' => $response->headers,
+			'stories' => $response->stories,
 		];
 	}
 
